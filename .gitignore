@@ -1,0 +1,6 @@
+*.ndb
+*.ncs
+*.gic
+resources.dat
+moduledownloaderresources.xml
+servers.xml
