@@ -1,9 +1,9 @@
 
 # Special attacks
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/uQhNLrtVprk" frameborder="0" allowfullscreen></iframe>
-
 ## Features
+
+[Youtube video](https://youtu.be/uQhNLrtVprk)
 
 - `CastSpecialAttack(string sAtkScript, location lLoc, float fDelay, int nShape, float fRange, float fWidth = 0.0)`
     + Allows to cast special attacks from script
