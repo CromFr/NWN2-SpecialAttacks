@@ -1,16 +1,16 @@
 
 
-const int SPECATK_EVENT_PREPARE_VISUAL = 1;
-const int SPECATK_EVENT_IMPACT_VISUAL = 2;
-const int SPECATK_EVENT_IMPACT = 3;
-const int SPECATK_EVENT_HIT = 4;
+const int SPECATK_EVENT_PREPARE = 1;
+const int SPECATK_EVENT_IMPACT = 2;
+const int SPECATK_EVENT_HIT = 3;
 
 const int SPECATK_SHAPE_NONE = 0;
 const int SPECATK_SHAPE_CIRCLE = 1;
 const int SPECATK_SHAPE_LINE = 2;
 const int SPECATK_SHAPE_CONE = 3;
 
-
+// CastSpecialAttack parameters.
+// Practical for attack scripts
 struct SpecAtkProperties{
 	string script;
 	location loc;
@@ -20,18 +20,47 @@ struct SpecAtkProperties{
 	float width;
 };
 
-struct SpecAtkProperties specialAttack;
+
+
+// Cast a special attack, with a red mark on the floor to warn players
+//
+// sAtkScript: Callback script to handle events
+// lLoc: Attack target location
+// fDelay: Duration of the red mark before hitting creatures inside
+// nShape: SPECATK_SHAPE_*
+// fRange: Range of the shape (circle/cone radius, line length, ...)
+// fWidth: Depends on nShape
+//  - SPECATK_SHAPE_NONE: may be used by sAtkScript
+//  - SPECATK_SHAPE_CIRCLE: ignored
+//  - SPECATK_SHAPE_LINE: thickness of the line
+//  - SPECATK_SHAPE_CONE: half angle in degrees
+//
+// Notes:
+//   SPECATK_SHAPE_LINE and SPECATK_SHAPE_CONE won't be displayed very well on sloped terrain. SPECATK_SHAPE_CIRCLE is OK
+void CastSpecialAttack(string sAtkScript, location lLoc, float fDelay, int nShape, float fRange, float fWidth = 0.0);
 
 // Creates an ipoint for applying effects, that will be destroyed after fDuration seconds
-object CreateTempIpoint(location lLocation, float fDuration){
-	object oIpoint = CreateObject(OBJECT_TYPE_PLACEABLE, "plc_ipoint ", lLocation);
-	AssignCommand(oIpoint, DelayCommand(fDuration, DestroyObject(oIpoint)));
-	return oIpoint;
-}
+object CreateTempIpoint(location lLocation, float fDuration);
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================================================
+// Implementation
+// ============================================================================
+
+struct SpecAtkProperties specialAttack;
 
 void _CallScript(int nEvent, object oTarget){
-	SendMessageToPC(GetFirstPC(), "_CallScript: "+specialAttack.script+" event="+IntToString(nEvent));
-
 	ClearScriptParams();
 	AddScriptParameterInt(nEvent);
 	AddScriptParameterObject(oTarget);
@@ -59,8 +88,8 @@ void _Prepare(){
 				object oIpoint = CreateTempIpoint(specialAttack.loc, specialAttack.delay+6.0);
 				SetScale(oIpoint, specialAttack.range, specialAttack.range, specialAttack.range);
 
-				_CallScript(SPECATK_EVENT_PREPARE_VISUAL, oIpoint);
-				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT_VISUAL, oIpoint));
+				_CallScript(SPECATK_EVENT_PREPARE, oIpoint);
+				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
 			}
 			break;
 		case SPECATK_SHAPE_CIRCLE:
@@ -69,8 +98,8 @@ void _Prepare(){
 				object oIpoint = CreateTempIpoint(specialAttack.loc, specialAttack.delay+6.0);
 				SetScale(oIpoint, specialAttack.range, specialAttack.range, specialAttack.range);
 
-				_CallScript(SPECATK_EVENT_PREPARE_VISUAL, oIpoint);
-				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT_VISUAL, oIpoint));
+				_CallScript(SPECATK_EVENT_PREPARE, oIpoint);
+				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
 
 				//Red mark
 				vector vCircle = GetPositionFromLocation(specialAttack.loc);
@@ -125,8 +154,8 @@ void _Prepare(){
 				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_line_start"), oIpointStart, specialAttack.delay);
 
 				//Ipoint & script
-				_CallScript(SPECATK_EVENT_PREPARE_VISUAL, oIpointEnd);
-				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT_VISUAL, oIpointEnd));
+				_CallScript(SPECATK_EVENT_PREPARE, oIpointEnd);
+				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpointEnd));
 
 				//Visualize limits
 				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(oArea, vStart+vDirection*specialAttack.range, 0.0), specialAttack.delay);
@@ -153,12 +182,9 @@ void _Prepare(){
 					int nFillConeCount = FloatToInt(fAngleToFill / 45.0) + 1;
 					float fDelta = fAngleToFill / (nFillConeCount*1.0);
 
-					SendMessageToPC(OBJECT_SELF, "fFacing="+FloatToString(fFacing)+" fAngleToFill="+FloatToString(fAngleToFill)+" nFillConeCount="+IntToString(nFillConeCount)+" fDelta="+FloatToString(fDelta));
-
 					int i;
 					for(i = 0 ; i < nFillConeCount ; i++){
 						float fIpointFacing = fFacing - specialAttack.width + 15.0 + (i + 0.5) * fDelta;
-						SendMessageToPC(OBJECT_SELF, "==> fIpointFacing="+FloatToString(fIpointFacing));
 
 						object oIpoint = CreateTempIpoint(Location(oArea, vO, fIpointFacing), specialAttack.delay + 6.0);
 						SetScale(oIpoint, 2.0, specialAttack.range / 10.0, 1.0);
@@ -187,8 +213,8 @@ void _Prepare(){
 				object oIpoint = CreateTempIpoint(specialAttack.loc, specialAttack.delay + 6.0);
 				SetScale(oIpoint, specialAttack.range, specialAttack.range, specialAttack.range);
 
-				_CallScript(SPECATK_EVENT_PREPARE_VISUAL, oIpoint);
-				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT_VISUAL, oIpoint));
+				_CallScript(SPECATK_EVENT_PREPARE, oIpoint);
+				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
 			}
 			break;
 
@@ -284,21 +310,6 @@ void _Impact(){
 	}
 }
 
-// Cast a special attack, with a red mark on the floor to warn players
-//
-// sAtkScript: Callback script to handle events
-// lLoc: Attack target location
-// fDelay: Duration of the red mark before hitting creatures inside
-// nShape: SPECATK_SHAPE_*
-// fRange: Range of the shape (circle/cone radius, line length, ...)
-// fWidth: Depends on nShape
-//  - SPECATK_SHAPE_NONE: may be used by sAtkScript
-//  - SPECATK_SHAPE_CIRCLE: ignored
-//  - SPECATK_SHAPE_LINE: thickness of the line
-//  - SPECATK_SHAPE_CONE: half angle in degrees
-//
-// Notes:
-//   SPECATK_SHAPE_LINE and SPECATK_SHAPE_CONE won't be displayed very well on sloped terrain. SPECATK_SHAPE_CIRCLE is OK
 void CastSpecialAttack(string sAtkScript, location lLoc, float fDelay, int nShape, float fRange, float fWidth = 0.0){
 	specialAttack.script = sAtkScript;
 	specialAttack.loc = lLoc;
@@ -308,6 +319,11 @@ void CastSpecialAttack(string sAtkScript, location lLoc, float fDelay, int nShap
 	specialAttack.width = fWidth;
 
 	_Prepare();
-	DelayCommand(fDelay, _Impact());
 }
 
+
+object CreateTempIpoint(location lLocation, float fDuration){
+	object oIpoint = CreateObject(OBJECT_TYPE_PLACEABLE, "plc_ipoint ", lLocation);
+	AssignCommand(oIpoint, DelayCommand(fDuration, DestroyObject(oIpoint)));
+	return oIpoint;
+}

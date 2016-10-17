@@ -9,31 +9,26 @@ void main(
 	){
 
 	object oCaster = OBJECT_SELF;
-	specialAttack.script = "";
-	specialAttack.loc    = Location(oAtkArea, Vector(fAtkX, fAtkY, fAtkZ), fAtkFacing);
-	specialAttack.delay  = fDelay;
-	specialAttack.shape  = nShape;
-	specialAttack.range  = fRange;
-	specialAttack.width  = fWidth;
+	struct SpecAtkProperties atk;
+	atk.script = "";
+	atk.loc    = Location(oAtkArea, Vector(fAtkX, fAtkY, fAtkZ), fAtkFacing);
+	atk.delay  = fDelay;
+	atk.shape  = nShape;
+	atk.range  = fRange;
+	atk.width  = fWidth;
 
 	switch(nEvent){
-		case SPECATK_EVENT_PREPARE_VISUAL:
+		case SPECATK_EVENT_PREPARE:
 			{
-				vector vStart = GetPositionFromLocation(specialAttack.loc);
+				vector vStart = GetPositionFromLocation(atk.loc);
 				vStart.z += 1.0;
 				vector vEnd = GetPosition(oTarget);
 				vEnd.z += 1.0;
 
-				object oIpointStart = CreateTempIpoint(Location(GetArea(oTarget), vStart, 0.0), specialAttack.delay);
-				object oIpointEnd = CreateTempIpoint(Location(GetArea(oTarget), vEnd, 0.0), specialAttack.delay);
+				object oIpointStart = CreateTempIpoint(Location(GetArea(oTarget), vStart, 0.0), atk.delay);
+				object oIpointEnd = CreateTempIpoint(Location(GetArea(oTarget), vEnd, 0.0), atk.delay);
 
-				DelayCommand(specialAttack.delay-0.5, ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_lightning_ray", oIpointStart), oIpointEnd, 0.5));
-			}
-			break;
-
-		case SPECATK_EVENT_IMPACT_VISUAL:
-			{
-
+				DelayCommand(atk.delay-0.5, ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_lightning_ray", oIpointStart), oIpointEnd, 0.5));
 			}
 			break;
 

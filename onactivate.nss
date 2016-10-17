@@ -7,10 +7,6 @@ void main()
 	object oItem = GetItemActivated();
 	location lTarget = GetItemActivatedTargetLocation();
 
-
-	//AssignCommand(oPC, CastSpecialAttack(GetTag(oItem), lTarget, 2.0, SPECATK_SHAPE_CIRCLE, Random(10)*1.0+1.0));
-
-
 	int nShape = SPECATK_SHAPE_CIRCLE;
 	if(FindSubString(GetTag(oItem), "_line_") >= 0)
 		nShape = SPECATK_SHAPE_LINE;
@@ -38,7 +34,7 @@ void main()
 	}
 
 
-
+	// The magic is here
 	AssignCommand(oPC, CastSpecialAttack(GetTag(oItem), lLoc, 2.0, nShape, fRange, fWidth));
 
 }

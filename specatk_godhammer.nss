@@ -9,41 +9,34 @@ void main(
 	){
 
 	object oCaster = OBJECT_SELF;
-	specialAttack.script = "";
-	specialAttack.loc    = Location(oAtkArea, Vector(fAtkX, fAtkY, fAtkZ), fAtkFacing);
-	specialAttack.delay  = fDelay;
-	specialAttack.shape  = nShape;
-	specialAttack.range  = fRange;
-	specialAttack.width  = fWidth;
+	struct SpecAtkProperties atk;
+	atk.script = "";
+	atk.loc    = Location(oAtkArea, Vector(fAtkX, fAtkY, fAtkZ), fAtkFacing);
+	atk.delay  = fDelay;
+	atk.shape  = nShape;
+	atk.range  = fRange;
+	atk.width  = fWidth;
 
 	switch(nEvent){
-		case SPECATK_EVENT_PREPARE_VISUAL:
+		case SPECATK_EVENT_PREPARE:
 			{
 				// Called when the red mark appears. May be called multiple times to cover the shape area
 				// oTarget: ipoint created for visual effects
 
-				vector vTop = GetPositionFromLocation(specialAttack.loc);
+				vector vTop = GetPositionFromLocation(atk.loc);
 				vTop.z += 15.0;
 
-				object oIpoint = CreateTempIpoint(Location(GetArea(oTarget), vTop, 0.0), specialAttack.delay);
-				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray", oIpoint), oTarget, specialAttack.delay);
-			}
-			break;
-
-		case SPECATK_EVENT_IMPACT_VISUAL:
-			{
-				// Called when the red mark disappears, just before creatures in shape are hit, for applying visual effects.
-				// May be called multiple time on different ipoints depending on the shape
-				// oTarget: ipoint created for visual effects
-				ApplyEffectAtLocation(DURATION_TYPE_INSTANT, EffectNWN2SpecialEffectFile("sp_holy_aoe"), specialAttack.loc);
+				object oIpoint = CreateTempIpoint(Location(GetArea(oTarget), vTop, 0.0), atk.delay);
+				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray", oIpoint), oTarget, atk.delay);
 			}
 			break;
 
 		case SPECATK_EVENT_IMPACT:
 			{
-				// Called when the red mark disappears, just before creatures in shape are hit
-				// Can be used to apply custom effects/shapes
-				// oTarget: OBJECT_INVALID
+				// Called when the red mark disappears, just before creatures in shape are hit, for applying visual effects.
+				// May be called multiple time on different ipoints depending on the shape
+				// oTarget: ipoint created for visual effects
+				ApplyEffectAtLocation(DURATION_TYPE_INSTANT, EffectNWN2SpecialEffectFile("sp_holy_aoe"), atk.loc);
 			}
 			break;
 
