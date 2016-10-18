@@ -18,7 +18,12 @@ struct SpecAtkProperties{
 	int shape;
 	float range;
 	float width;
+	// You can use this ipoint to set custom local variables. It will be destroyed 6 seconds after the end of effects
+	object var_container;
 };
+
+// Needs to be set in attack scripts
+struct SpecAtkProperties atk;
 
 
 
@@ -34,15 +39,20 @@ struct SpecAtkProperties{
 //  - SPECATK_SHAPE_CIRCLE: ignored
 //  - SPECATK_SHAPE_LINE: thickness of the line
 //  - SPECATK_SHAPE_CONE: half angle in degrees
+// fDuration: duration of the mark after the impact
 //
 // Notes:
 //   SPECATK_SHAPE_LINE and SPECATK_SHAPE_CONE won't be displayed very well on sloped terrain. SPECATK_SHAPE_CIRCLE is OK
 void CastSpecialAttack(string sAtkScript, location lLoc, float fDelay, int nShape, float fRange, float fWidth = 0.0);
 
-// Creates an ipoint for applying effects, that will be destroyed after fDuration seconds
-object CreateTempIpoint(location lLocation, float fDuration);
+// Check if lPoint is in the shape created at location lShape
+//
+// nShape: SPECATK_SHAPE_*
+int GetIsInShape(location lPoint, location lShape, int nShape, float fRange, float fWidth);
 
-
+// Creates an ipoint for applying effects, that will be destroyed when the special attack ends
+// Warning: atk needs to be set
+object CreateTempIpoint(location lLocation);
 
 
 
@@ -58,168 +68,188 @@ object CreateTempIpoint(location lLocation, float fDuration);
 // Implementation
 // ============================================================================
 
-struct SpecAtkProperties specialAttack;
 
-void _CallScript(int nEvent, object oTarget){
+int _CallScriptInt(int nEvent, object oTarget){
 	ClearScriptParams();
 	AddScriptParameterInt(nEvent);
 	AddScriptParameterObject(oTarget);
 
-	AddScriptParameterObject(GetAreaFromLocation(specialAttack.loc));
-	AddScriptParameterFloat(GetPositionFromLocation(specialAttack.loc).x);
-	AddScriptParameterFloat(GetPositionFromLocation(specialAttack.loc).y);
-	AddScriptParameterFloat(GetPositionFromLocation(specialAttack.loc).z);
-	AddScriptParameterFloat(GetFacingFromLocation(specialAttack.loc));
-	AddScriptParameterFloat(specialAttack.delay);
-	AddScriptParameterInt(specialAttack.shape);
-	AddScriptParameterFloat(specialAttack.range);
-	AddScriptParameterFloat(specialAttack.width);
+	AddScriptParameterObject(GetAreaFromLocation(atk.loc));
+	AddScriptParameterFloat(GetPositionFromLocation(atk.loc).x);
+	AddScriptParameterFloat(GetPositionFromLocation(atk.loc).y);
+	AddScriptParameterFloat(GetPositionFromLocation(atk.loc).z);
+	AddScriptParameterFloat(GetFacingFromLocation(atk.loc));
+	AddScriptParameterFloat(atk.delay);
+	AddScriptParameterInt(atk.shape);
+	AddScriptParameterFloat(atk.range);
+	AddScriptParameterFloat(atk.width);
+	AddScriptParameterObject(atk.var_container);
 
-	ExecuteScriptEnhanced(specialAttack.script, OBJECT_SELF);
+	return ExecuteScriptEnhanced(atk.script, OBJECT_SELF);
 }
 
+void _CallScript(int nEvent, object oTarget){
+	_CallScriptInt(nEvent, oTarget);
+}
+
+void _RegisterObjectToDestroy(object o){
+	int nIndex = GetLocalInt(atk.var_container, "_destroy_cnt");
+	SetLocalObject(atk.var_container, "_destroy_"+IntToString(nIndex), o);
+	SetLocalInt(atk.var_container, "_destroy_cnt", nIndex+1);
+}
+void _DestroyRegisteredObjects(){
+	int nCount = GetLocalInt(atk.var_container, "_destroy_cnt");
+	int i;
+	for(i = 0 ; i < nCount ; i++){
+		object oIpoint = GetLocalObject(atk.var_container, "_destroy_"+IntToString(i));
+		effect e = GetFirstEffect(oIpoint);
+		while(GetIsEffectValid(e)){
+			RemoveEffect(oIpoint, e);
+			e = GetNextEffect(oIpoint);
+		}
+		DelayCommand(1.0, DestroyObject(oIpoint));
+	}
+}
 
 void _Prepare(){
 
-	switch(specialAttack.shape){
+	switch(atk.shape){
 		case SPECATK_SHAPE_NONE:
 			{
 				//Ipoint & script
-				object oIpoint = CreateTempIpoint(specialAttack.loc, specialAttack.delay+6.0);
-				SetScale(oIpoint, specialAttack.range, specialAttack.range, specialAttack.range);
+				object oIpoint = CreateTempIpoint(atk.loc);
+				SetScale(oIpoint, atk.range, atk.range, atk.range);
 
 				_CallScript(SPECATK_EVENT_PREPARE, oIpoint);
-				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
+				DelayCommand(atk.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
 			}
 			break;
 		case SPECATK_SHAPE_CIRCLE:
 			{
 				//Ipoint & script
-				object oIpoint = CreateTempIpoint(specialAttack.loc, specialAttack.delay+6.0);
-				SetScale(oIpoint, specialAttack.range, specialAttack.range, specialAttack.range);
+				object oIpoint = CreateTempIpoint(atk.loc);
+				SetScale(oIpoint, atk.range, atk.range, atk.range);
 
 				_CallScript(SPECATK_EVENT_PREPARE, oIpoint);
-				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
+				DelayCommand(atk.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
 
 				//Red mark
-				vector vCircle = GetPositionFromLocation(specialAttack.loc);
-				vCircle.z = specialAttack.range*10.0-100.0;// height = range*10 - VFXLength/2
-				location lCircle = Location(GetAreaFromLocation(specialAttack.loc), vCircle, 0.0);
-				ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_circle"), lCircle, specialAttack.delay);
+				vector vCircle = GetPositionFromLocation(atk.loc);
+				vCircle.z = atk.range*10.0-100.0;// height = range*10 - VFXLength/2
+				object oCircle = CreateTempIpoint(Location(GetAreaFromLocation(atk.loc), vCircle, 0.0));
+
+				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_circle"), oCircle);
 
 				//Visualize limits
-				// vector vTest = GetPositionFromLocation(specialAttack.loc);
-				// vTest.x += specialAttack.range;
-				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(GetAreaFromLocation(specialAttack.loc), vTest, 0.0), specialAttack.delay);
-				// vTest.x -= 2.0*specialAttack.range;
-				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(GetAreaFromLocation(specialAttack.loc), vTest, 0.0), specialAttack.delay);
-				// vTest.x += specialAttack.range;
-				// vTest.y += specialAttack.range;
-				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(GetAreaFromLocation(specialAttack.loc), vTest, 0.0), specialAttack.delay);
-				// vTest.y -= 2.0*specialAttack.range;
-				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(GetAreaFromLocation(specialAttack.loc), vTest, 0.0), specialAttack.delay);
-
+				// vector vTest = GetPositionFromLocation(atk.loc);
+				// vTest.x += atk.range;
+				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(GetAreaFromLocation(atk.loc), vTest, 0.0), atk.delay);
+				// vTest.x -= 2.0*atk.range;
+				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(GetAreaFromLocation(atk.loc), vTest, 0.0), atk.delay);
+				// vTest.x += atk.range;
+				// vTest.y += atk.range;
+				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(GetAreaFromLocation(atk.loc), vTest, 0.0), atk.delay);
+				// vTest.y -= 2.0*atk.range;
+				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(GetAreaFromLocation(atk.loc), vTest, 0.0), atk.delay);
 			}
 			break;
 		case SPECATK_SHAPE_LINE:
 			{
-				object oArea = GetAreaFromLocation(specialAttack.loc);
-				vector vStart = GetPositionFromLocation(specialAttack.loc);
-				float fFacing = GetFacingFromLocation(specialAttack.loc);
+				object oArea = GetAreaFromLocation(atk.loc);
+				vector vStart = GetPositionFromLocation(atk.loc);
+				float fFacing = GetFacingFromLocation(atk.loc);
 
 				vector vDirection = AngleToVector(fFacing);
 				vector vPerpendicular = AngleToVector(fFacing + 90.0);
-				vector vPosCenter = vStart + vDirection * specialAttack.range / 2.0;
+				vector vPosCenter = vStart + vDirection * atk.range / 2.0;
 
-				float fMarkScaleWidth = specialAttack.width / 4.0;
-				float fMarkScaleLength = specialAttack.range / 10.0;
+				float fMarkScaleWidth = atk.width / 4.0;
+				float fMarkScaleLength = atk.range / 10.0;
 
-				vector vLeft = vPosCenter + vPerpendicular * (specialAttack.width / 2.0);
-				object oIpointLeft = CreateTempIpoint(Location(oArea, vLeft, fFacing), specialAttack.delay + 6.0);
+				vector vLeft = vPosCenter + vPerpendicular * (atk.width / 2.0);
+				object oIpointLeft = CreateTempIpoint(Location(oArea, vLeft, fFacing));
 				SetScale(oIpointLeft, fMarkScaleWidth, fMarkScaleLength, 1.0);
-				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointLeft, specialAttack.delay);
+				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointLeft);
 
-				vector vRight = vPosCenter + vPerpendicular * (-specialAttack.width / 2.0);
-				object oIpointRight = CreateTempIpoint(Location(oArea, vRight, fFacing + 180.0), specialAttack.delay + 6.0);
+				vector vRight = vPosCenter + vPerpendicular * (-atk.width / 2.0);
+				object oIpointRight = CreateTempIpoint(Location(oArea, vRight, fFacing + 180.0));
 				SetScale(oIpointRight, fMarkScaleWidth, fMarkScaleLength, 1.0);
-				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointRight, specialAttack.delay);
+				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointRight);
 
-				vector vEnd = vStart + vDirection * specialAttack.range;
-				object oIpointEnd = CreateTempIpoint(Location(oArea, vEnd, fFacing), specialAttack.delay + 6.0);
+				vector vEnd = vStart + vDirection * atk.range;
+				object oIpointEnd = CreateTempIpoint(Location(oArea, vEnd, fFacing));
 				SetScale(oIpointEnd, fMarkScaleWidth, 1.0, 1.0);
-				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_line_end"), oIpointEnd, specialAttack.delay);
+				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line_end"), oIpointEnd);
 
-				object oIpointStart = CreateTempIpoint(Location(oArea, vStart, fFacing), specialAttack.delay + 6.0);
+				object oIpointStart = CreateTempIpoint(Location(oArea, vStart, fFacing));
 				SetScale(oIpointStart, fMarkScaleWidth, 1.0, 1.0);
-				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_line_start"), oIpointStart, specialAttack.delay);
+				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line_start"), oIpointStart);
 
 				//Ipoint & script
 				_CallScript(SPECATK_EVENT_PREPARE, oIpointEnd);
-				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpointEnd));
+				DelayCommand(atk.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpointEnd));
 
 				//Visualize limits
-				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(oArea, vStart+vDirection*specialAttack.range, 0.0), specialAttack.delay);
-				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(oArea, vLeft, 0.0), specialAttack.delay);
-				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(oArea, vRight, 0.0), specialAttack.delay);
+				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(oArea, vStart+vDirection*atk.range, 0.0), atk.delay);
+				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(oArea, vLeft, 0.0), atk.delay);
+				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(oArea, vRight, 0.0), atk.delay);
 			}
 			break;
 
 		case SPECATK_SHAPE_CONE:
 			{
-				object oArea = GetAreaFromLocation(specialAttack.loc);
-				vector vO = GetPositionFromLocation(specialAttack.loc);
-				float fFacing = GetFacingFromLocation(specialAttack.loc);
+				object oArea = GetAreaFromLocation(atk.loc);
+				vector vO = GetPositionFromLocation(atk.loc);
+				float fFacing = GetFacingFromLocation(atk.loc);
 				float fOffsetCone = 0.0;
-				if(specialAttack.width < 60.0){
-					fOffsetCone = 1.0 / cos(specialAttack.width);
+				if(atk.width < 60.0){
+					fOffsetCone = 1.0 / cos(atk.width);
 
-					object oIpointStart = CreateTempIpoint(specialAttack.loc, specialAttack.delay + 6.0);
-					SetScale(oIpointStart, 2.0 * tan(specialAttack.width), 2.0, 1.0);
-					ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_line_end"), oIpointStart, specialAttack.delay);
+					object oIpointStart = CreateTempIpoint(atk.loc);
+					SetScale(oIpointStart, 2.0 * tan(atk.width), 2.0, 1.0);
+					ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line_end"), oIpointStart);
 				}
 				else{
-					float fAngleToFill = (specialAttack.width - 15.0) * 2.0;
+					float fAngleToFill = (atk.width - 15.0) * 2.0;
 					int nFillConeCount = FloatToInt(fAngleToFill / 45.0) + 1;
 					float fDelta = fAngleToFill / (nFillConeCount*1.0);
 
 					int i;
 					for(i = 0 ; i < nFillConeCount ; i++){
-						float fIpointFacing = fFacing - specialAttack.width + 15.0 + (i + 0.5) * fDelta;
+						float fIpointFacing = fFacing - atk.width + 15.0 + (i + 0.5) * fDelta;
 
-						object oIpoint = CreateTempIpoint(Location(oArea, vO, fIpointFacing), specialAttack.delay + 6.0);
-						SetScale(oIpoint, 2.0, specialAttack.range / 10.0, 1.0);
-						ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_cone_fill"), oIpoint, specialAttack.delay);
+						object oIpoint = CreateTempIpoint(Location(oArea, vO, fIpointFacing));
+						SetScale(oIpoint, 2.0, atk.range / 10.0, 1.0);
+						ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_cone_fill"), oIpoint);
 					}
-
-
 				}
 
-				float fFacingLeft = fFacing + specialAttack.width;
+				float fFacingLeft = fFacing + atk.width;
 				vector vDirectionLeft = AngleToVector(fFacingLeft);
-				vector vIpointLeft = vO + vDirectionLeft * (fOffsetCone + (specialAttack.range - fOffsetCone) / 2.0);
-				object oIpointLeft = CreateTempIpoint(Location(oArea, vIpointLeft, fFacingLeft), specialAttack.delay + 6.0);
-				SetScale(oIpointLeft, 2.0, (specialAttack.range - fOffsetCone) / 10.0, 1.0);
-				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointLeft, specialAttack.delay);
+				vector vIpointLeft = vO + vDirectionLeft * (fOffsetCone + (atk.range - fOffsetCone) / 2.0);
+				object oIpointLeft = CreateTempIpoint(Location(oArea, vIpointLeft, fFacingLeft));
+				SetScale(oIpointLeft, 2.0, (atk.range - fOffsetCone) / 10.0, 1.0);
+				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointLeft);
 
-				float fFacingRight = fFacing - specialAttack.width;
+				float fFacingRight = fFacing - atk.width;
 				vector vDirectionRight = AngleToVector(fFacingRight);
-				vector vIpointRight = vO + vDirectionRight * (fOffsetCone + (specialAttack.range - fOffsetCone) / 2.0);
-				object oIpointRight = CreateTempIpoint(Location(oArea, vIpointRight, fFacingRight+180.0), specialAttack.delay + 6.0);
-				SetScale(oIpointRight, 2.0, (specialAttack.range - fOffsetCone) / 10.0, 1.0);
-				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointRight, specialAttack.delay);
+				vector vIpointRight = vO + vDirectionRight * (fOffsetCone + (atk.range - fOffsetCone) / 2.0);
+				object oIpointRight = CreateTempIpoint(Location(oArea, vIpointRight, fFacingRight+180.0));
+				SetScale(oIpointRight, 2.0, (atk.range - fOffsetCone) / 10.0, 1.0);
+				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointRight);
 
 
 				//Ipoint & script
-				object oIpoint = CreateTempIpoint(specialAttack.loc, specialAttack.delay + 6.0);
-				SetScale(oIpoint, specialAttack.range, specialAttack.range, specialAttack.range);
+				object oIpoint = CreateTempIpoint(atk.loc);
+				SetScale(oIpoint, atk.range, atk.range, atk.range);
 
 				_CallScript(SPECATK_EVENT_PREPARE, oIpoint);
-				DelayCommand(specialAttack.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
+				DelayCommand(atk.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
 			}
 			break;
 
 		default:
-			SendMessageToPC(OBJECT_SELF, "BUG: Shape "+IntToString(specialAttack.shape)+" not implemented in _Prepare()");
+			SendMessageToPC(OBJECT_SELF, "BUG: Shape "+IntToString(atk.shape)+" not implemented in _Prepare()");
 	}
 }
 
@@ -231,19 +261,27 @@ float _GetSideFromLine(vector vA, vector vB, vector vPoint){
 }
 
 void _Impact(){
-	_CallScript(SPECATK_EVENT_IMPACT, OBJECT_INVALID);
+	int nNextImpactDelay = _CallScriptInt(SPECATK_EVENT_IMPACT, OBJECT_INVALID);
+	if(nNextImpactDelay > 0){
+		float fNextImpactDelay = nNextImpactDelay / 1000.0;
+		DelayCommand(fNextImpactDelay, _Impact());
+	}
+	else{
+		_DestroyRegisteredObjects();
+		AssignCommand(atk.var_container, DelayCommand(6.0, DestroyObject(atk.var_container)));
+	}
 
-	switch(specialAttack.shape){
+	switch(atk.shape){
 		case SPECATK_SHAPE_NONE:
 			break;
 		case SPECATK_SHAPE_CIRCLE:
 			{
-				object oNear = GetFirstObjectInShape(SHAPE_SPHERE, specialAttack.range, specialAttack.loc);
+				object oNear = GetFirstObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
 				while(GetIsObjectValid(oNear)){
 
 					_CallScript(SPECATK_EVENT_HIT, oNear);
 
-					oNear = GetNextObjectInShape(SHAPE_SPHERE, specialAttack.range, specialAttack.loc);
+					oNear = GetNextObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
 				}
 			}
 			break;
@@ -253,17 +291,17 @@ void _Impact(){
 				// A--------------------B/
 				// O                    <=
 				// C--------------------D\
-				vector vO = GetPositionFromLocation(specialAttack.loc);
-				float fFacing = GetFacingFromLocation(specialAttack.loc);
+				vector vO = GetPositionFromLocation(atk.loc);
+				float fFacing = GetFacingFromLocation(atk.loc);
 				vector vDirection = AngleToVector(fFacing);
 				vector vPerpendicular = AngleToVector(fFacing + 90.0);
 
-				vector vA = vO - vPerpendicular * (specialAttack.width / 2.0);
-				vector vB = vA + vDirection * specialAttack.range;
-				vector vC = vO + vPerpendicular * (specialAttack.width / 2.0);
-				vector vD = vC + vDirection * specialAttack.range;
+				vector vA = vO - vPerpendicular * (atk.width / 2.0);
+				vector vB = vA + vDirection * atk.range;
+				vector vC = vO + vPerpendicular * (atk.width / 2.0);
+				vector vD = vC + vDirection * atk.range;
 
-				object oNear = GetFirstObjectInShape(SHAPE_SPHERE, specialAttack.range, specialAttack.loc);
+				object oNear = GetFirstObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
 				while(GetIsObjectValid(oNear)){
 
 					vector vNear = GetPosition(oNear);
@@ -273,7 +311,7 @@ void _Impact(){
 						_CallScript(SPECATK_EVENT_HIT, oNear);
 					}
 
-					oNear = GetNextObjectInShape(SHAPE_SPHERE, specialAttack.range, specialAttack.loc);
+					oNear = GetNextObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
 				}
 			}
 			break;
@@ -283,47 +321,106 @@ void _Impact(){
 				//   __-- A
 				// O __
 				//     -- B
-				vector vO = GetPositionFromLocation(specialAttack.loc);
-				float fFacing = GetFacingFromLocation(specialAttack.loc);
-				vector vA = vO + AngleToVector(fFacing - specialAttack.width) * specialAttack.range;
-				vector vB = vO + AngleToVector(fFacing + specialAttack.width) * specialAttack.range;
+				vector vO = GetPositionFromLocation(atk.loc);
+				float fFacing = GetFacingFromLocation(atk.loc);
+				vector vA = vO + AngleToVector(fFacing - atk.width) * atk.range;
+				vector vB = vO + AngleToVector(fFacing + atk.width) * atk.range;
 
-				object oNear = GetFirstObjectInShape(SHAPE_SPHERE, specialAttack.range, specialAttack.loc);
+				object oNear = GetFirstObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
 				while(GetIsObjectValid(oNear)){
 
 					vector vNear = GetPosition(oNear);
-					if((specialAttack.width <= 90.0
+					if((atk.width <= 90.0
 					&& _GetSideFromLine(vO, vA, vNear) >= 0.0 && _GetSideFromLine(vO, vB, vNear) <= 0.0)
-					|| (specialAttack.width > 90.0
+					|| (atk.width > 90.0
 					&& (_GetSideFromLine(vO, vA, vNear) >= 0.0 || _GetSideFromLine(vO, vB, vNear) <= 0.0))){
 
 						_CallScript(SPECATK_EVENT_HIT, oNear);
 					}
 
-					oNear = GetNextObjectInShape(SHAPE_SPHERE, specialAttack.range, specialAttack.loc);
+					oNear = GetNextObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
 				}
 			}
 			break;
 
 		default:
-			SendMessageToPC(OBJECT_SELF, "BUG: Shape "+IntToString(specialAttack.shape)+" not implemented in _Impact()");
+			SendMessageToPC(OBJECT_SELF, "BUG: Shape "+IntToString(atk.shape)+" not implemented in _Impact()");
 	}
 }
 
 void CastSpecialAttack(string sAtkScript, location lLoc, float fDelay, int nShape, float fRange, float fWidth = 0.0){
-	specialAttack.script = sAtkScript;
-	specialAttack.loc = lLoc;
-	specialAttack.delay = fDelay;
-	specialAttack.shape = nShape;
-	specialAttack.range = fRange;
-	specialAttack.width = fWidth;
+	atk.script = sAtkScript;
+	atk.loc = lLoc;
+	atk.delay = fDelay;
+	atk.shape = nShape;
+	atk.range = fRange;
+	atk.width = fWidth;
+	atk.var_container = CreateObject(OBJECT_TYPE_PLACEABLE, "plc_ipoint ", lLoc);
 
 	_Prepare();
+	DelayCommand(fDelay, _Impact());
 }
 
 
-object CreateTempIpoint(location lLocation, float fDuration){
+object CreateTempIpoint(location lLocation){
 	object oIpoint = CreateObject(OBJECT_TYPE_PLACEABLE, "plc_ipoint ", lLocation);
-	AssignCommand(oIpoint, DelayCommand(fDuration, DestroyObject(oIpoint)));
+	_RegisterObjectToDestroy(oIpoint);
 	return oIpoint;
+}
+
+
+int GetIsInShape(location lPoint, location lShape, int nShape, float fRange, float fWidth){
+	switch(nShape){
+		case SPECATK_SHAPE_NONE:
+			break;
+		case SPECATK_SHAPE_CIRCLE:
+			{
+				GetDistanceBetweenLocations(lShape, lPoint);
+			}
+			break;
+
+		case SPECATK_SHAPE_LINE:
+			{
+				// A--------------------B/
+				// O                    <=
+				// C--------------------D\
+				vector vO = GetPositionFromLocation(lShape);
+				float fFacing = GetFacingFromLocation(lShape);
+				vector vDirection = AngleToVector(fFacing);
+				vector vPerpendicular = AngleToVector(fFacing + 90.0);
+
+				vector vA = vO - vPerpendicular * (fWidth / 2.0);
+				vector vB = vA + vDirection * fRange;
+				vector vC = vO + vPerpendicular * (fWidth / 2.0);
+				vector vD = vC + vDirection * fRange;
+
+				vector vNear = GetPositionFromLocation(lPoint);
+				return _GetSideFromLine(vA, vB, vNear) >= 0.0
+				    && _GetSideFromLine(vC, vD, vNear) <= 0.0
+				    && _GetSideFromLine(vA, vC, vNear) <= 0.0;
+			}
+			break;
+
+		case SPECATK_SHAPE_CONE:
+			{
+				//   __-- A
+				// O __
+				//     -- B
+				vector vO = GetPositionFromLocation(lShape);
+				float fFacing = GetFacingFromLocation(lShape);
+				vector vA = vO + AngleToVector(fFacing - fWidth) * fRange;
+				vector vB = vO + AngleToVector(fFacing + fWidth) * fRange;
+
+				vector vNear = GetPositionFromLocation(lPoint);
+				return (fWidth <= 90.0
+				    && _GetSideFromLine(vO, vA, vNear) >= 0.0 && _GetSideFromLine(vO, vB, vNear) <= 0.0)
+				    || (fWidth > 90.0
+				    && (_GetSideFromLine(vO, vA, vNear) >= 0.0 || _GetSideFromLine(vO, vB, vNear) <= 0.0));
+			}
+			break;
+
+		default:
+			SendMessageToPC(OBJECT_SELF, "BUG: Shape "+IntToString(nShape)+" not implemented in GetIsInShape()");
+	}
+	return FALSE;
 }

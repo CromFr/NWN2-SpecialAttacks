@@ -1,21 +1,20 @@
 
 #include "specatk_inc"
 
-void main(
+int StartingConditional(
 	int nEvent,
 	object oTarget,
 	object oAtkArea, float fAtkX, float fAtkY, float fAtkZ, float fAtkFacing,
-	float fDelay, int nShape, float fRange, float fWidth
+	float fDelay, int nShape, float fRange, float fWidth, object oVarContainer
 	){
-
 	object oCaster = OBJECT_SELF;
-	struct SpecAtkProperties atk;
 	atk.script = "";
 	atk.loc    = Location(oAtkArea, Vector(fAtkX, fAtkY, fAtkZ), fAtkFacing);
 	atk.delay  = fDelay;
 	atk.shape  = nShape;
 	atk.range  = fRange;
 	atk.width  = fWidth;
+	atk.var_container = oVarContainer;
 
 	switch(nEvent){
 		case SPECATK_EVENT_PREPARE:
@@ -25,8 +24,8 @@ void main(
 				vector vEnd = GetPosition(oTarget);
 				vEnd.z += 1.0;
 
-				object oIpointStart = CreateTempIpoint(Location(GetArea(oTarget), vStart, 0.0), atk.delay);
-				object oIpointEnd = CreateTempIpoint(Location(GetArea(oTarget), vEnd, 0.0), atk.delay);
+				object oIpointStart = CreateTempIpoint(Location(GetArea(oTarget), vStart, 0.0));
+				object oIpointEnd = CreateTempIpoint(Location(GetArea(oTarget), vEnd, 0.0));
 
 				DelayCommand(atk.delay-0.5, ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_lightning_ray", oIpointStart), oIpointEnd, 0.5));
 			}
@@ -36,7 +35,7 @@ void main(
 			{
 
 			}
-			break;
+			return 0;
 
 		case SPECATK_EVENT_HIT:
 			{
@@ -47,4 +46,5 @@ void main(
 			}
 			break;
 	}
+	return 0;
 }

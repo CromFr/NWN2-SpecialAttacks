@@ -32,6 +32,6 @@ __Don't forget to build scripts :wink:__
 - Example attack scripts:
     + Circle shape: [specatk_godhammer](specatk_godhammer.nss)
     + Line shape: [specatk_line_lightning](specatk_line_lightning.nss)
-    + Cone shape: [specatk_cone_fire](specatk_cone_fire.nss)
+    + Cone shape and multiple impact: [specatk_cone_fire](specatk_cone_fire.nss)
 - Library:
     + [specatk_inc](specatk_inc.nss)
