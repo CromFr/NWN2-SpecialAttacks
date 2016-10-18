@@ -208,10 +208,18 @@ void _Prepare(){
 					object oIpointStart = CreateTempIpoint(atk.loc);
 					SetScale(oIpointStart, 2.0 * tan(atk.width), 2.0, 1.0);
 					ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line_end"), oIpointStart);
+
+					if(atk.width > 25.0){
+						object oIpointMiddle = CreateTempIpoint(atk.loc);
+						SetScale(oIpointMiddle, 2.0, atk.range / 10.0, 1.0);
+						ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_cone_fill"), oIpointMiddle);
+					}
 				}
 				else{
 					float fAngleToFill = (atk.width - 15.0) * 2.0;
-					int nFillConeCount = FloatToInt(fAngleToFill / 45.0) + 1;
+					int nFillConeCount = FloatToInt(fAngleToFill / 30.0);
+					if(nFillConeCount == 0)
+						nFillConeCount = 1;
 					float fDelta = fAngleToFill / (nFillConeCount*1.0);
 
 					int i;
@@ -219,7 +227,7 @@ void _Prepare(){
 						float fIpointFacing = fFacing - atk.width + 15.0 + (i + 0.5) * fDelta;
 
 						object oIpoint = CreateTempIpoint(Location(oArea, vO, fIpointFacing));
-						SetScale(oIpoint, 2.0, atk.range / 10.0, 1.0);
+						SetScale(oIpoint, atk.range / 10.0, atk.range / 10.0, 1.0);
 						ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_cone_fill"), oIpoint);
 					}
 				}
