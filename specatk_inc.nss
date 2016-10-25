@@ -22,9 +22,6 @@ struct SpecAtkProperties{
 	object var_container;
 };
 
-// Needs to be set in attack scripts
-struct SpecAtkProperties atk;
-
 
 
 // Cast a special attack, with a red mark on the floor to warn players
@@ -52,7 +49,7 @@ int GetIsInShape(location lPoint, location lShape, int nShape, float fRange, flo
 
 // Creates an ipoint for applying effects, that will be destroyed when the special attack ends
 // Warning: atk needs to be set
-object CreateTempIpoint(location lLocation);
+object CreateTempIpoint(struct SpecAtkProperties atk, location lLocation);
 
 
 
@@ -68,8 +65,10 @@ object CreateTempIpoint(location lLocation);
 // Implementation
 // ============================================================================
 
+void _Impact(struct SpecAtkProperties atk, object oTarget);
 
-int _CallScriptInt(int nEvent, object oTarget){
+
+int _CallScriptInt(struct SpecAtkProperties atk, int nEvent, object oTarget){
 	ClearScriptParams();
 	AddScriptParameterInt(nEvent);
 	AddScriptParameterObject(oTarget);
@@ -88,16 +87,16 @@ int _CallScriptInt(int nEvent, object oTarget){
 	return ExecuteScriptEnhanced(atk.script, OBJECT_SELF);
 }
 
-void _CallScript(int nEvent, object oTarget){
-	_CallScriptInt(nEvent, oTarget);
+void _CallScript(struct SpecAtkProperties atk, int nEvent, object oTarget){
+	_CallScriptInt(atk, nEvent, oTarget);
 }
 
-void _RegisterObjectToDestroy(object o){
+void _RegisterObjectToDestroy(struct SpecAtkProperties atk, object o){
 	int nIndex = GetLocalInt(atk.var_container, "_destroy_cnt");
 	SetLocalObject(atk.var_container, "_destroy_"+IntToString(nIndex), o);
 	SetLocalInt(atk.var_container, "_destroy_cnt", nIndex+1);
 }
-void _DestroyRegisteredObjects(){
+void _DestroyRegisteredObjects(struct SpecAtkProperties atk){
 	int nCount = GetLocalInt(atk.var_container, "_destroy_cnt");
 	int i;
 	for(i = 0 ; i < nCount ; i++){
@@ -111,32 +110,32 @@ void _DestroyRegisteredObjects(){
 	}
 }
 
-void _Prepare(){
+void _Prepare(struct SpecAtkProperties atk){
 
 	switch(atk.shape){
 		case SPECATK_SHAPE_NONE:
 			{
 				//Ipoint & script
-				object oIpoint = CreateTempIpoint(atk.loc);
+				object oIpoint = CreateTempIpoint(atk, atk.loc);
 				SetScale(oIpoint, atk.range, atk.range, atk.range);
 
-				_CallScript(SPECATK_EVENT_PREPARE, oIpoint);
-				DelayCommand(atk.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
+				_CallScript(atk, SPECATK_EVENT_PREPARE, oIpoint);
+				DelayCommand(atk.delay, _Impact(atk, oIpoint));
 			}
 			break;
 		case SPECATK_SHAPE_CIRCLE:
 			{
 				//Ipoint & script
-				object oIpoint = CreateTempIpoint(atk.loc);
+				object oIpoint = CreateTempIpoint(atk, atk.loc);
 				SetScale(oIpoint, atk.range, atk.range, atk.range);
 
-				_CallScript(SPECATK_EVENT_PREPARE, oIpoint);
-				DelayCommand(atk.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
+				_CallScript(atk, SPECATK_EVENT_PREPARE, oIpoint);
+				DelayCommand(atk.delay, _Impact(atk, oIpoint));
 
 				//Red mark
 				vector vCircle = GetPositionFromLocation(atk.loc);
 				vCircle.z = atk.range*10.0-100.0;// height = range*10 - VFXLength/2
-				object oCircle = CreateTempIpoint(Location(GetAreaFromLocation(atk.loc), vCircle, 0.0));
+				object oCircle = CreateTempIpoint(atk, Location(GetAreaFromLocation(atk.loc), vCircle, 0.0));
 
 				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_circle"), oCircle);
 
@@ -167,27 +166,27 @@ void _Prepare(){
 				float fMarkScaleLength = atk.range / 10.0;
 
 				vector vLeft = vPosCenter + vPerpendicular * (atk.width / 2.0);
-				object oIpointLeft = CreateTempIpoint(Location(oArea, vLeft, fFacing));
+				object oIpointLeft = CreateTempIpoint(atk, Location(oArea, vLeft, fFacing));
 				SetScale(oIpointLeft, fMarkScaleWidth, fMarkScaleLength, 1.0);
 				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointLeft);
 
 				vector vRight = vPosCenter + vPerpendicular * (-atk.width / 2.0);
-				object oIpointRight = CreateTempIpoint(Location(oArea, vRight, fFacing + 180.0));
+				object oIpointRight = CreateTempIpoint(atk, Location(oArea, vRight, fFacing + 180.0));
 				SetScale(oIpointRight, fMarkScaleWidth, fMarkScaleLength, 1.0);
 				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointRight);
 
 				vector vEnd = vStart + vDirection * atk.range;
-				object oIpointEnd = CreateTempIpoint(Location(oArea, vEnd, fFacing));
+				object oIpointEnd = CreateTempIpoint(atk, Location(oArea, vEnd, fFacing));
 				SetScale(oIpointEnd, fMarkScaleWidth, 1.0, 1.0);
 				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line_end"), oIpointEnd);
 
-				object oIpointStart = CreateTempIpoint(Location(oArea, vStart, fFacing));
+				object oIpointStart = CreateTempIpoint(atk, Location(oArea, vStart, fFacing));
 				SetScale(oIpointStart, fMarkScaleWidth, 1.0, 1.0);
 				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line_start"), oIpointStart);
 
 				//Ipoint & script
-				_CallScript(SPECATK_EVENT_PREPARE, oIpointEnd);
-				DelayCommand(atk.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpointEnd));
+				_CallScript(atk, SPECATK_EVENT_PREPARE, oIpointEnd);
+				DelayCommand(atk.delay, _Impact(atk, oIpointEnd));
 
 				//Visualize limits
 				// ApplyEffectAtLocation(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray"), Location(oArea, vStart+vDirection*atk.range, 0.0), atk.delay);
@@ -205,12 +204,12 @@ void _Prepare(){
 				if(atk.width < 60.0){
 					fOffsetCone = 1.0 / cos(atk.width);
 
-					object oIpointStart = CreateTempIpoint(atk.loc);
+					object oIpointStart = CreateTempIpoint(atk, atk.loc);
 					SetScale(oIpointStart, 2.0 * tan(atk.width), 2.0, 1.0);
 					ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line_end"), oIpointStart);
 
 					if(atk.width > 25.0){
-						object oIpointMiddle = CreateTempIpoint(atk.loc);
+						object oIpointMiddle = CreateTempIpoint(atk, atk.loc);
 						SetScale(oIpointMiddle, 2.0, atk.range / 10.0, 1.0);
 						ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_cone_fill"), oIpointMiddle);
 					}
@@ -226,7 +225,7 @@ void _Prepare(){
 					for(i = 0 ; i < nFillConeCount ; i++){
 						float fIpointFacing = fFacing - atk.width + 15.0 + (i + 0.5) * fDelta;
 
-						object oIpoint = CreateTempIpoint(Location(oArea, vO, fIpointFacing));
+						object oIpoint = CreateTempIpoint(atk, Location(oArea, vO, fIpointFacing));
 						SetScale(oIpoint, atk.range / 10.0, atk.range / 10.0, 1.0);
 						ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_cone_fill"), oIpoint);
 					}
@@ -235,24 +234,24 @@ void _Prepare(){
 				float fFacingLeft = fFacing + atk.width;
 				vector vDirectionLeft = AngleToVector(fFacingLeft);
 				vector vIpointLeft = vO + vDirectionLeft * (fOffsetCone + (atk.range - fOffsetCone) / 2.0);
-				object oIpointLeft = CreateTempIpoint(Location(oArea, vIpointLeft, fFacingLeft));
+				object oIpointLeft = CreateTempIpoint(atk, Location(oArea, vIpointLeft, fFacingLeft));
 				SetScale(oIpointLeft, 2.0, (atk.range - fOffsetCone) / 10.0, 1.0);
 				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointLeft);
 
 				float fFacingRight = fFacing - atk.width;
 				vector vDirectionRight = AngleToVector(fFacingRight);
 				vector vIpointRight = vO + vDirectionRight * (fOffsetCone + (atk.range - fOffsetCone) / 2.0);
-				object oIpointRight = CreateTempIpoint(Location(oArea, vIpointRight, fFacingRight+180.0));
+				object oIpointRight = CreateTempIpoint(atk, Location(oArea, vIpointRight, fFacingRight+180.0));
 				SetScale(oIpointRight, 2.0, (atk.range - fOffsetCone) / 10.0, 1.0);
 				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointRight);
 
 
 				//Ipoint & script
-				object oIpoint = CreateTempIpoint(atk.loc);
+				object oIpoint = CreateTempIpoint(atk, atk.loc);
 				SetScale(oIpoint, atk.range, atk.range, atk.range);
 
-				_CallScript(SPECATK_EVENT_PREPARE, oIpoint);
-				DelayCommand(atk.delay, _CallScript(SPECATK_EVENT_IMPACT, oIpoint));
+				_CallScript(atk, SPECATK_EVENT_PREPARE, oIpoint);
+				DelayCommand(atk.delay, _Impact(atk, oIpoint));
 			}
 			break;
 
@@ -268,14 +267,14 @@ float _GetSideFromLine(vector vA, vector vB, vector vPoint){
 	return fA * vPoint.x + fB * vPoint.y + fC;
 }
 
-void _Impact(){
-	int nNextImpactDelay = _CallScriptInt(SPECATK_EVENT_IMPACT, OBJECT_INVALID);
+void _Impact(struct SpecAtkProperties atk, object oTarget){
+	int nNextImpactDelay = _CallScriptInt(atk, SPECATK_EVENT_IMPACT, oTarget);
 	if(nNextImpactDelay > 0){
 		float fNextImpactDelay = nNextImpactDelay / 1000.0;
-		DelayCommand(fNextImpactDelay, _Impact());
+		DelayCommand(fNextImpactDelay, _Impact(atk, oTarget));
 	}
 	else{
-		_DestroyRegisteredObjects();
+		_DestroyRegisteredObjects(atk);
 		AssignCommand(atk.var_container, DelayCommand(6.0, DestroyObject(atk.var_container)));
 	}
 
@@ -287,7 +286,7 @@ void _Impact(){
 				object oNear = GetFirstObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
 				while(GetIsObjectValid(oNear)){
 
-					_CallScript(SPECATK_EVENT_HIT, oNear);
+					_CallScript(atk, SPECATK_EVENT_HIT, oNear);
 
 					oNear = GetNextObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
 				}
@@ -316,7 +315,7 @@ void _Impact(){
 					if(_GetSideFromLine(vA, vB, vNear) >= 0.0
 					&& _GetSideFromLine(vC, vD, vNear) <= 0.0
 					&& _GetSideFromLine(vA, vC, vNear) <= 0.0){
-						_CallScript(SPECATK_EVENT_HIT, oNear);
+						_CallScript(atk, SPECATK_EVENT_HIT, oNear);
 					}
 
 					oNear = GetNextObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
@@ -343,7 +342,7 @@ void _Impact(){
 					|| (atk.width > 90.0
 					&& (_GetSideFromLine(vO, vA, vNear) >= 0.0 || _GetSideFromLine(vO, vB, vNear) <= 0.0))){
 
-						_CallScript(SPECATK_EVENT_HIT, oNear);
+						_CallScript(atk, SPECATK_EVENT_HIT, oNear);
 					}
 
 					oNear = GetNextObjectInShape(SHAPE_SPHERE, atk.range, atk.loc);
@@ -357,6 +356,7 @@ void _Impact(){
 }
 
 void CastSpecialAttack(string sAtkScript, location lLoc, float fDelay, int nShape, float fRange, float fWidth = 0.0){
+	struct SpecAtkProperties atk;
 	atk.script = sAtkScript;
 	atk.loc = lLoc;
 	atk.delay = fDelay;
@@ -365,14 +365,13 @@ void CastSpecialAttack(string sAtkScript, location lLoc, float fDelay, int nShap
 	atk.width = fWidth;
 	atk.var_container = CreateObject(OBJECT_TYPE_PLACEABLE, "plc_ipoint ", lLoc);
 
-	_Prepare();
-	DelayCommand(fDelay, _Impact());
+	_Prepare(atk);
 }
 
 
-object CreateTempIpoint(location lLocation){
+object CreateTempIpoint(struct SpecAtkProperties atk, location lLocation){
 	object oIpoint = CreateObject(OBJECT_TYPE_PLACEABLE, "plc_ipoint ", lLocation);
-	_RegisterObjectToDestroy(oIpoint);
+	_RegisterObjectToDestroy(atk, oIpoint);
 	return oIpoint;
 }
 

@@ -17,6 +17,7 @@ int StartingConditional(
 	float fDelay, int nShape, float fRange, float fWidth, object oVarContainer // Do not use directly
 	){
 	object oCaster = OBJECT_SELF;
+	struct SpecAtkProperties atk;
 	atk.script = "";
 	atk.loc    = Location(oAtkArea, Vector(fAtkX, fAtkY, fAtkZ), fAtkFacing);
 	atk.delay  = fDelay;
@@ -32,7 +33,7 @@ int StartingConditional(
 				vector vTop = GetPositionFromLocation(atk.loc);
 				vTop.z += 15.0;
 
-				object oIpoint = CreateTempIpoint(Location(GetArea(oTarget), vTop, 0.0));
+				object oIpoint = CreateTempIpoint(atk, Location(GetArea(oTarget), vTop, 0.0));
 				ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_holy_ray", oIpoint), oTarget, atk.delay);
 			}
 			break;

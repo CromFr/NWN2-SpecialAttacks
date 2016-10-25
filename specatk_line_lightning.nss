@@ -8,6 +8,7 @@ int StartingConditional(
 	float fDelay, int nShape, float fRange, float fWidth, object oVarContainer
 	){
 	object oCaster = OBJECT_SELF;
+	struct SpecAtkProperties atk;
 	atk.script = "";
 	atk.loc    = Location(oAtkArea, Vector(fAtkX, fAtkY, fAtkZ), fAtkFacing);
 	atk.delay  = fDelay;
@@ -24,8 +25,8 @@ int StartingConditional(
 				vector vEnd = GetPosition(oTarget);
 				vEnd.z += 1.0;
 
-				object oIpointStart = CreateTempIpoint(Location(GetArea(oTarget), vStart, 0.0));
-				object oIpointEnd = CreateTempIpoint(Location(GetArea(oTarget), vEnd, 0.0));
+				object oIpointStart = CreateTempIpoint(atk, Location(GetArea(oTarget), vStart, 0.0));
+				object oIpointEnd = CreateTempIpoint(atk, Location(GetArea(oTarget), vEnd, 0.0));
 
 				DelayCommand(atk.delay-0.5, ApplyEffectToObject(DURATION_TYPE_TEMPORARY, EffectNWN2SpecialEffectFile("sp_lightning_ray", oIpointStart), oIpointEnd, 0.5));
 			}

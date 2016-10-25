@@ -8,6 +8,7 @@ int StartingConditional(
 	float fDelay, int nShape, float fRange, float fWidth, object oVarContainer
 	){
 	object oCaster = OBJECT_SELF;
+	struct SpecAtkProperties atk;
 	atk.script = "";
 	atk.loc    = Location(oAtkArea, Vector(fAtkX, fAtkY, fAtkZ), fAtkFacing);
 	atk.delay  = fDelay;
