@@ -22,21 +22,21 @@
     <TargetAttachment>0</TargetAttachment>
     <SourceAttachmentObject>0</SourceAttachmentObject>
     <TargetAttachmentObject>1</TargetAttachmentObject>
-    <Texture>fx_portalring.tga</Texture>
+    <Texture>fx_shin_shield3.dds</Texture>
     <ProjectionType>1</ProjectionType>
-    <FOV>0.23</FOV>
+    <FOV>0.2295108</FOV>
     <Width>1</Width>
     <Height>1</Height>
     <Length>200</Length>
-    <FOVEnd>0.23</FOVEnd>
+    <FOVEnd>0.2295108</FOVEnd>
     <WidthEnd>1</WidthEnd>
     <HeightEnd>1</HeightEnd>
     <LengthEnd>200</LengthEnd>
     <SourceBlend>2</SourceBlend>
     <DestBlend>2</DestBlend>
     <Lerp>1</Lerp>
-    <LerpPeriod>0.5</LerpPeriod>
-    <Color>-10944512</Color>
+    <LerpPeriod>0.3</LerpPeriod>
+    <Color>-10941440</Color>
     <ColorEnd>-10944512</ColorEnd>
     <Orientation>
       <x>0</x>
@@ -66,22 +66,22 @@
     <TargetAttachment>0</TargetAttachment>
     <SourceAttachmentObject>0</SourceAttachmentObject>
     <TargetAttachmentObject>1</TargetAttachmentObject>
-    <Texture>fx_selection_enemy.dds</Texture>
+    <Texture>spelltgt_circle_hostile.tga</Texture>
     <ProjectionType>1</ProjectionType>
-    <FOV>0.23</FOV>
+    <FOV>0.2289872</FOV>
     <Width>1</Width>
     <Height>1</Height>
     <Length>200</Length>
-    <FOVEnd>0.23</FOVEnd>
+    <FOVEnd>0.2289872</FOVEnd>
     <WidthEnd>1</WidthEnd>
     <HeightEnd>1</HeightEnd>
     <LengthEnd>200</LengthEnd>
     <SourceBlend>2</SourceBlend>
     <DestBlend>2</DestBlend>
-    <Lerp>0</Lerp>
-    <LerpPeriod>1</LerpPeriod>
+    <Lerp>1</Lerp>
+    <LerpPeriod>0.3</LerpPeriod>
     <Color>-262144</Color>
-    <ColorEnd>-1</ColorEnd>
+    <ColorEnd>-255744</ColorEnd>
     <Orientation>
       <x>0</x>
       <y>0</y>
