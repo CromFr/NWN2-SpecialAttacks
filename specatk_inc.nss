@@ -200,10 +200,23 @@ void _Prepare(struct SpecAtkProperties atk){
 				object oArea = GetAreaFromLocation(atk.loc);
 				vector vO = GetPositionFromLocation(atk.loc);
 				float fFacing = GetFacingFromLocation(atk.loc);
-				float fOffsetCone = 0.0;
-				if(atk.width < 60.0){
-					fOffsetCone = 1.0 / cos(atk.width);
+				float fOffsetCone = atk.width < 60.0? 1.0 / cos(atk.width) : 0.0;
 
+				float fFacingLeft = fFacing + atk.width;
+				vector vDirectionLeft = AngleToVector(fFacingLeft);
+				vector vIpointLeft = vO + vDirectionLeft * (fOffsetCone + (atk.range - fOffsetCone) / 2.0);
+				object oIpointLeft = CreateTempIpoint(atk, Location(oArea, vIpointLeft, fFacingLeft));
+				SetScale(oIpointLeft, 2.0, (atk.range - fOffsetCone) / 10.0, 1.0);
+				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointLeft);
+
+				float fFacingRight = fFacing - atk.width;
+				vector vDirectionRight = AngleToVector(fFacingRight);
+				vector vIpointRight = vO + vDirectionRight * (fOffsetCone + (atk.range - fOffsetCone) / 2.0);
+				object oIpointRight = CreateTempIpoint(atk, Location(oArea, vIpointRight, fFacingRight+180.0));
+				SetScale(oIpointRight, 2.0, (atk.range - fOffsetCone) / 10.0, 0.5);
+				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointRight);
+
+				if(atk.width < 60.0){
 					object oIpointStart = CreateTempIpoint(atk, atk.loc);
 					SetScale(oIpointStart, 2.0 * tan(atk.width), 2.0, 1.0);
 					ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line_end"), oIpointStart);
@@ -216,7 +229,7 @@ void _Prepare(struct SpecAtkProperties atk){
 				}
 				else{
 					float fAngleToFill = (atk.width - 15.0) * 2.0;
-					int nFillConeCount = FloatToInt(fAngleToFill / 30.0);
+					int nFillConeCount = FloatToInt(fAngleToFill / 45.0);
 					if(nFillConeCount == 0)
 						nFillConeCount = 1;
 					float fDelta = fAngleToFill / (nFillConeCount*1.0);
@@ -230,20 +243,6 @@ void _Prepare(struct SpecAtkProperties atk){
 						ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_cone_fill"), oIpoint);
 					}
 				}
-
-				float fFacingLeft = fFacing + atk.width;
-				vector vDirectionLeft = AngleToVector(fFacingLeft);
-				vector vIpointLeft = vO + vDirectionLeft * (fOffsetCone + (atk.range - fOffsetCone) / 2.0);
-				object oIpointLeft = CreateTempIpoint(atk, Location(oArea, vIpointLeft, fFacingLeft));
-				SetScale(oIpointLeft, 2.0, (atk.range - fOffsetCone) / 10.0, 1.0);
-				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointLeft);
-
-				float fFacingRight = fFacing - atk.width;
-				vector vDirectionRight = AngleToVector(fFacingRight);
-				vector vIpointRight = vO + vDirectionRight * (fOffsetCone + (atk.range - fOffsetCone) / 2.0);
-				object oIpointRight = CreateTempIpoint(atk, Location(oArea, vIpointRight, fFacingRight+180.0));
-				SetScale(oIpointRight, 2.0, (atk.range - fOffsetCone) / 10.0, 1.0);
-				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_line"), oIpointRight);
 
 
 				//Ipoint & script
