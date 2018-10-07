@@ -134,7 +134,7 @@ void _Prepare(struct SpecAtkProperties atk){
 
 				//Red mark
 				vector vCircle = GetPositionFromLocation(atk.loc);
-				vCircle.z = atk.range*10.0-100.0;// height = range*10 - VFXLength/2
+				vCircle.z += atk.range*10.0-100.0;// height = range*10 - VFXLength/2
 				object oCircle = CreateTempIpoint(atk, Location(GetAreaFromLocation(atk.loc), vCircle, 0.0));
 
 				ApplyEffectToObject(DURATION_TYPE_PERMANENT, EffectNWN2SpecialEffectFile("specatk_shape_circle"), oCircle);
